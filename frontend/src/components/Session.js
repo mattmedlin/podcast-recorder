@@ -1,30 +1,55 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Participant from "./Participant";
 import Controls from "./Controls";
+import io from "socket.io-client";
+
+const SOCKET_SERVER_URL = "http://localhost:5001"; // Replace with your signaling server URL
 
 const Session = () => {
   const [participants, setParticipants] = useState([]);
-
-  // Initialize local media stream for the host
-  const initializeLocalStream = async () => {
-    try {
-      const localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      addParticipant("local", localStream);
-    } catch (error) {
-      console.error("Error accessing media devices:", error);
-    }
-  };
+  const socketRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const peersRef = useRef([]);
 
   useEffect(() => {
+    const initializeLocalStream = async () => {
+      try {
+        const localStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        localStreamRef.current = localStream;
+        addParticipant("local", localStream);
+
+        socketRef.current = io(SOCKET_SERVER_URL);
+
+        const roomId = "my-room";
+        socketRef.current.emit("join-room", roomId);
+
+        socketRef.current.on("user-connected", (userId) => {
+          console.log("connected");
+          handleNewUser(userId, localStream);
+        });
+
+        socketRef.current.on("offer", handleReceiveOffer);
+        socketRef.current.on("answer", handleReceiveAnswer);
+        socketRef.current.on("ice-candidate", handleNewICECandidate);
+      } catch (error) {
+        console.error("Error accessing media devices:", error);
+      }
+    };
+
     initializeLocalStream();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+      peersRef.current.forEach((peer) => peer.close());
+    };
   }, []);
 
-  // Function to add a participant to the state
   const addParticipant = (id, stream) => {
-    // Check if the participant with the given ID already exists
     const participantExists = participants.some(
       (participant) => participant.id === id
     );
@@ -34,29 +59,86 @@ const Session = () => {
         ...prevParticipants,
         { id, stream },
       ]);
-    } else {
-      console.log(`Participant ${id} already exists`);
     }
+  };
+
+  const handleNewUser = (userId, localStream) => {
+    const peer = createPeer(userId);
+    peersRef.current.push({ peerId: userId, peer });
+
+    localStream
+      .getTracks()
+      .forEach((track) => peer.addTrack(track, localStream));
+  };
+
+  const createPeer = (userId) => {
+    const peer = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketRef.current.emit("ice-candidate", {
+          target: userId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    peer.ontrack = (event) => {
+      addParticipant(userId, event.streams[0]);
+    };
+
+    peer.onnegotiationneeded = async () => {
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socketRef.current.emit("offer", {
+        target: userId,
+        offer: peer.localDescription,
+      });
+    };
+
+    return peer;
+  };
+
+  const handleReceiveOffer = async ({ from, offer }) => {
+    const peer = createPeer(from);
+    peersRef.current.push({ peerId: from, peer });
+
+    await peer.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+
+    socketRef.current.emit("answer", {
+      target: from,
+      answer: peer.localDescription,
+    });
+  };
+
+  const handleReceiveAnswer = async ({ from, answer }) => {
+    const peer = peersRef.current.find((p) => p.peerId === from).peer;
+    await peer.setRemoteDescription(new RTCSessionDescription(answer));
+  };
+
+  const handleNewICECandidate = ({ from, candidate }) => {
+    const peer = peersRef.current.find((p) => p.peerId === from).peer;
+    peer.addIceCandidate(new RTCIceCandidate(candidate));
   };
 
   const handleStartRecording = () => {
     console.log("Start Recording");
-    // Implement start recording logic for all participants here
   };
 
   const handlePauseRecording = () => {
     console.log("Pause Recording");
-    // Implement pause recording logic for all participants here
   };
 
   const handleStopRecording = () => {
     console.log("Stop Recording");
-    // Implement stop recording logic for all participants here
   };
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Video Section */}
       <div className="flex flex-wrap justify-center items-center flex-grow overflow-y-auto">
         {participants.map((participant) => (
           <div key={participant.id} className="p-2">
@@ -65,7 +147,6 @@ const Session = () => {
         ))}
       </div>
 
-      {/* Controls Section */}
       <div className="bg-gray-800 p-4 text-center">
         <Controls
           onStart={handleStartRecording}
