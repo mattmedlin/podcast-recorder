@@ -50,10 +50,18 @@ const Session = () => {
   }, []);
 
   const addParticipant = (id, stream) => {
-    setParticipants((prevParticipants) => [
-      ...prevParticipants,
-      { id, stream },
-    ]);
+    setParticipants((prevParticipants) => {
+      // Check if the participant with the given ID already exists
+      const participantExists = prevParticipants.some(
+        (participant) => participant.id === id
+      );
+
+      if (!participantExists) {
+        return [...prevParticipants, { id, stream }];
+      }
+
+      return prevParticipants; // Return unchanged array if participant exists
+    });
   };
 
   const handleNewUser = (userId, localStream) => {
@@ -88,6 +96,7 @@ const Session = () => {
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       socketRef.current.emit("offer", {
+        from: socketRef.current.id, // Ensure that this is sent correctly
         target: userId,
         offer: peer.localDescription,
       });
@@ -97,6 +106,7 @@ const Session = () => {
   };
 
   const handleReceiveOffer = async ({ from, offer }) => {
+    console.log(from);
     const peer = createPeer(from);
     peersRef.current.push({ peerId: from, peer });
 
@@ -111,13 +121,48 @@ const Session = () => {
   };
 
   const handleReceiveAnswer = async ({ from, answer }) => {
-    const peer = peersRef.current.find((p) => p.peerId === from).peer;
-    await peer.setRemoteDescription(new RTCSessionDescription(answer));
+    // Find the peer associated with the 'from' user
+    const peerObj = peersRef.current.find((p) => p.peerId === from);
+
+    if (!peerObj) {
+      console.error(`No peer found for user: ${from}`);
+      return;
+    }
+
+    const peer = peerObj.peer;
+
+    if (peer) {
+      try {
+        await peer.setRemoteDescription(new RTCSessionDescription(answer));
+      } catch (error) {
+        console.error(
+          "Error setting remote description in handleReceiveAnswer:",
+          error
+        );
+      }
+    } else {
+      console.error("Peer exists, but it's not defined properly");
+    }
   };
 
   const handleNewICECandidate = ({ from, candidate }) => {
-    const peer = peersRef.current.find((p) => p.peerId === from).peer;
-    peer.addIceCandidate(new RTCIceCandidate(candidate));
+    // Find the peer associated with the 'from' user
+    const peerObj = peersRef.current.find((p) => p.peerId === from);
+
+    if (!peerObj) {
+      console.error(`No peer found for user: ${from}`);
+      return;
+    }
+
+    const peer = peerObj.peer;
+
+    if (peer) {
+      peer.addIceCandidate(new RTCIceCandidate(candidate)).catch((e) => {
+        console.error("Error adding received ICE candidate", e);
+      });
+    } else {
+      console.error("Peer exists, but it's not defined properly");
+    }
   };
 
   const handleStartRecording = () => {

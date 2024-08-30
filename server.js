@@ -7,14 +7,22 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+    ],
     methods: ["GET", "POST"],
   },
 });
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"], // Allow requests from your React app
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+    ], // Allow requests from your React app
   })
 );
 
