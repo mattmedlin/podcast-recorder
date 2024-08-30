@@ -2,8 +2,8 @@ import React, { useRef, useEffect, useState } from "react";
 
 const Participant = ({ stream }) => {
   const videoRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(true);
-  const [isVideoHidden, setIsVideoHidden] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoHidden, setIsVideoHidden] = useState(false);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -21,7 +21,7 @@ const Participant = ({ stream }) => {
       audioTracks.forEach((track) => (track.enabled = !currentEnabledState));
 
       // Update the state based on the track's new state
-      setIsMuted(!currentEnabledState);
+      setIsMuted(currentEnabledState);
     }
   };
 
@@ -49,13 +49,13 @@ const Participant = ({ stream }) => {
           onClick={handleToggleMute}
           className="mr-2 bg-blue-500 text-white px-4 py-2 rounded"
         >
-          {isMuted ? "Mute" : "Unmute"} Microphone
+          {isMuted ? "Unmute" : "Mute"} Microphone
         </button>
         <button
           onClick={handleToggleVideo}
           className="bg-red-500 text-white px-4 py-2 rounded"
         >
-          {isVideoHidden ? "Hide" : "Show"} Video
+          {isVideoHidden ? "Show" : "Hide"} Video
         </button>
       </div>
     </div>
