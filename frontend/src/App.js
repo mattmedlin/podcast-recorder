@@ -3,7 +3,7 @@ import Session from "./components/Session";
 
 function App() {
   return (
-    <div className="App">
+    <div>
       <h1>Podcast Recorder</h1>
       <Session />
     </div>

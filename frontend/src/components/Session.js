@@ -47,11 +47,14 @@ const Session = () => {
 
   return (
     <div>
-      <div>
+      <div className="flex flex-wrap justify-center items-center h-screen">
         {participants.map((participant) => (
-          <Participant key={participant.id} stream={participant.stream} />
+          <div key={participant.id}>
+            <Participant stream={participant.stream} />
+          </div>
         ))}
       </div>
+
       <Controls
         onStart={handleStartRecording}
         onPause={handlePauseRecording}
