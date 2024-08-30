@@ -5,29 +5,38 @@ import Controls from "./Controls";
 const Session = () => {
   const [participants, setParticipants] = useState([]);
 
-  useEffect(() => {
-    // Initialize local media stream for the host
-    const initializeLocalStream = async () => {
-      try {
-        const localStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-        addParticipant("local", localStream);
-      } catch (error) {
-        console.error("Error accessing media devices:", error);
-      }
-    };
+  // Initialize local media stream for the host
+  const initializeLocalStream = async () => {
+    try {
+      const localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      addParticipant("local", localStream);
+    } catch (error) {
+      console.error("Error accessing media devices:", error);
+    }
+  };
 
+  useEffect(() => {
     initializeLocalStream();
   }, []);
 
   // Function to add a participant to the state
   const addParticipant = (id, stream) => {
-    setParticipants((prevParticipants) => [
-      ...prevParticipants,
-      { id, stream },
-    ]);
+    // Check if the participant with the given ID already exists
+    const participantExists = participants.some(
+      (participant) => participant.id === id
+    );
+
+    if (!participantExists) {
+      setParticipants((prevParticipants) => [
+        ...prevParticipants,
+        { id, stream },
+      ]);
+    } else {
+      console.log(`Participant ${id} already exists`);
+    }
   };
 
   const handleStartRecording = () => {
@@ -46,20 +55,24 @@ const Session = () => {
   };
 
   return (
-    <div>
-      <div className="flex flex-wrap justify-center items-center h-screen">
+    <div className="flex flex-col h-screen">
+      {/* Video Section */}
+      <div className="flex flex-wrap justify-center items-center flex-grow overflow-y-auto">
         {participants.map((participant) => (
-          <div key={participant.id}>
+          <div key={participant.id} className="p-2">
             <Participant stream={participant.stream} />
           </div>
         ))}
       </div>
 
-      <Controls
-        onStart={handleStartRecording}
-        onPause={handlePauseRecording}
-        onStop={handleStopRecording}
-      />
+      {/* Controls Section */}
+      <div className="bg-gray-800 p-4 text-center">
+        <Controls
+          onStart={handleStartRecording}
+          onPause={handlePauseRecording}
+          onStop={handleStopRecording}
+        />
+      </div>
     </div>
   );
 };
