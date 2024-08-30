@@ -33,13 +33,14 @@ io.on("connection", (socket) => {
       socket.join(roomId);
       console.log(`Socket ${socket.id} joined room: ${roomId}`);
 
-      // Check if the room exists and has other users
       const room = io.sockets.adapter.rooms.get(roomId);
-      if (room && room.size > 1) {
-        // size > 1 means there are other participants in the room
-        socket.to(roomId).broadcast.emit("user-connected", socket.id);
+      if (room) {
+        console.log(roomId);
+        console.log(socket.id);
+
+        socket.to(roomId).emit("user-connected", socket.id);
       } else {
-        console.log(`Room ${roomId} is empty or does not exist`);
+        console.log(`Room ${roomId} does not exist`);
       }
     } catch (error) {
       console.error("Error joining room:", error);

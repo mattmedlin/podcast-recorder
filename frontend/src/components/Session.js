@@ -3,7 +3,7 @@ import Participant from "./Participant";
 import Controls from "./Controls";
 import io from "socket.io-client";
 
-const SOCKET_SERVER_URL = "http://localhost:5001"; // Replace with your signaling server URL
+const SOCKET_SERVER_URL = "http://localhost:5001";
 
 const Session = () => {
   const [participants, setParticipants] = useState([]);
@@ -27,7 +27,7 @@ const Session = () => {
         socketRef.current.emit("join-room", roomId);
 
         socketRef.current.on("user-connected", (userId) => {
-          console.log("connected");
+          console.log(`User connected: ${userId}`);
           handleNewUser(userId, localStream);
         });
 
@@ -45,21 +45,15 @@ const Session = () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
-      peersRef.current.forEach((peer) => peer.close());
+      peersRef.current.forEach((peer) => peer.peer.close());
     };
   }, []);
 
   const addParticipant = (id, stream) => {
-    const participantExists = participants.some(
-      (participant) => participant.id === id
-    );
-
-    if (!participantExists) {
-      setParticipants((prevParticipants) => [
-        ...prevParticipants,
-        { id, stream },
-      ]);
-    }
+    setParticipants((prevParticipants) => [
+      ...prevParticipants,
+      { id, stream },
+    ]);
   };
 
   const handleNewUser = (userId, localStream) => {
@@ -86,6 +80,7 @@ const Session = () => {
     };
 
     peer.ontrack = (event) => {
+      console.log(`Receiving track from ${userId}`);
       addParticipant(userId, event.streams[0]);
     };
 
